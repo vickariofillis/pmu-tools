@@ -3108,6 +3108,15 @@ def gen_res_map(solist):
             gr = obj.group_map[k]
             obj.res_map[k] = gr[0].base + gr[1]
 
+def gen_run_map(solist):
+    for obj in solist:
+        runs = set()
+        for g, _ in obj.group_map.values():
+            r = getattr(g, 'run', None)
+            if r:
+                runs.add(r)
+        obj.runs = sorted(runs)
+
 def print_group(g):
     evkeys = [k for o in g.objl for k in o.group_map.keys() if o.group_map[k][0] == g]
     objnames = {("%s" % quote(x[2])) + ("[%d]" % x[1] if x[1] else "") for x in evkeys}
@@ -3261,11 +3270,22 @@ class Scheduler(object):
 
     def allocate_bases(self):
         base = 0
+        run = 1
+        pending = []
         for g in self.evgroups:
             g.base = base
             self.evnum += g.evnum
             base += len(g.evnum)
-
+            if g.outgroup:
+                pending.append(g)
+            else:
+                g.run = run
+                for og in pending:
+                    og.run = run
+                pending = []
+                run += 1
+        for og in pending:
+            og.run = run - 1
     def print_group_summary(self, olist):
         num_groups = len([g for g in self.evgroups if not g.outgroup])
         print("%d cpu groups, %d outgroups with %d events total (%d unique) for %d objects, %d dummies" % (
@@ -3314,6 +3334,7 @@ class Scheduler(object):
                 print_group(g)
 
         gen_res_map(olist)
+        gen_run_map(olist)
         if args.print_group:
             self.print_group_summary(olist)
 
@@ -3392,7 +3413,8 @@ class Printer(object):
                         desc,
                         title,
                         metric_unit(obj),
-                        idlemark)
+                        idlemark,
+                        obj.runs if hasattr(obj, 'runs') else None)
             else:
                 out.ratio(obj_area(obj),
                         full_name(obj), val, timestamp,
@@ -3402,7 +3424,8 @@ class Printer(object):
                         sample_desc(obj.sample, self.emap) if has(obj, 'sample') else None,
                         "<==" if obj == bn else "",
                         node_below(obj),
-                        idlemark)
+                        idlemark,
+                        obj.runs if hasattr(obj, 'runs') else None)
                 if obj.thresh or args.verbose:
                     self.sample_obj.add(obj)
             self.numprint += 1
