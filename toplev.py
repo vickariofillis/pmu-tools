@@ -2059,9 +2059,11 @@ def execute_no_multiplex(runner_list, out, rest, summary):
             if gg.outgroup:
                 outg.append(g)
                 continue
+            if n > 0:
+                print()
             print("RUN #%d of %d%s: %s" % (n + 1, num_runs,
                 " for %s" % runner_name(runner) if len(runner_list) > 1 else "",
-                " ".join([quote(o.name) for o in gg.objl])))
+                " ".join([quote(o.name) for o in gg.objl])), flush=True)
             # becomes results for first iteration
             lresults = results if n == 0 else []
             res = None
